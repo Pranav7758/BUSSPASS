@@ -1,3 +1,4 @@
+modules = ["nodejs-20"]
 [nix]
 channel = "stable-25_05"
 packages = ["unzip"]
@@ -13,3 +14,31 @@ VITE_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhY
 VITE_GOOGLE_MAPS_API_KEY = "AIzaSyAteK1XuXT1JBFYaLMVWb-mwJBx8QR2bfk"
 SUPABASE_URL = "https://zonasqqmnyevnomdtvmm.supabase.co"
 SUPABASE_SERVICE_ROLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpvbmFzcXFtbnlldm5vbWR0dm1tIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NDQ5Nzg3NiwiZXhwIjoyMDgwMDczODc2fQ.uA0Bg7DgOGp_Wx-9NkixXR4EPd-C52sWAH65vwIx_m0"
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "SwiftPass Server"
+
+[[workflows.workflow]]
+name = "SwiftPass Server"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd SwiftPayzipzipzip-1zip/SwiftPayzipzipzip && npm run dev"
+waitForPort = 5000
+
+[workflows.workflow.metadata]
+outputType = "webview"
+
+[[ports]]
+localPort = 5000
+externalPort = 80
