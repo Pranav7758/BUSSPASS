@@ -229,6 +229,11 @@ The application runs on port 5000 with `npm run dev`.
 - No manual SQL required - all automated
 
 ## Recent Changes
+- **November 30, 2025**: Added GPS Test Mode for driver dashboard
+  - **Test Mode Toggle**: Drivers can enable "Test Mode" to simulate GPS without physically traveling
+  - **Simulate Arrive Button**: Click to simulate arriving at a stop (uses stop's coordinates)
+  - **Simulate Depart Button**: Click to simulate departing from current stop
+  - Useful for testing the automatic GPS tracking system without leaving your desk
 - **November 30, 2025**: Added train-like location tracking feature (similar to RailYatri's "Where's my train")
   - **Admin Route Stops Management** (`/admin/route-stops`): Manage stops for each route with add/edit/delete/reorder functionality
   - **Enhanced Student Track Bus** (`/student/track-bus`): Visual timeline with real-time stop status updates
@@ -240,6 +245,13 @@ The application runs on port 5000 with `npm run dev`.
 - QR code generation and scanning
 - Mock Razorpay wallet recharges
 - Role-based authentication
+
+## GPS Auto-Tracking System
+The system uses coordinates to automatically detect when a bus arrives at or departs from stops:
+- **Arrival Radius**: 50 meters - Bus is marked "arrived" when within 50m of a stop
+- **Departure Radius**: 80 meters - Bus is marked "departed" when it moves 80m away
+- **Sequential Order**: Stops are processed in order (must depart from stop 1 before arriving at stop 2)
+- **Manual Override**: Drivers can still manually update stops if GPS fails
 
 ## New Database Tables Required
 Run the SQL in `supabase-tables.sql` to add the stop tracking tables:

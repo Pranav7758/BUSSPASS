@@ -83,6 +83,9 @@ export default function DriverDashboard() {
   const [gpsError, setGpsError] = useState<string | null>(null);
   const watchIdRef = useRef<number | null>(null);
   const lastAutoUpdateRef = useRef<{stopId: string, status: TripStopStatus, time: number} | null>(null);
+  
+  const [testMode, setTestMode] = useState(false);
+  const [simulatingStop, setSimulatingStop] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -251,7 +254,70 @@ export default function DriverDashboard() {
     }
   }, [toast]);
 
+  const simulateAtStop = useCallback(async (stop: StopWithStatus) => {
+    if (!activeTrip || !stop.latitude || !stop.longitude) return;
+    
+    setSimulatingStop(stop.id);
+    
+    const simulatedLat = stop.latitude;
+    const simulatedLng = stop.longitude;
+    setCurrentLocation({ lat: simulatedLat, lng: simulatedLng });
+
+    for (const s of stops) {
+      if (!s.latitude || !s.longitude) continue;
+
+      const distance = calculateDistance(simulatedLat, simulatedLng, s.latitude, s.longitude);
+
+      if (s.status === 'pending') {
+        const stopIndex = stops.findIndex(st => st.id === s.id);
+        const prevStop = stopIndex > 0 ? stops[stopIndex - 1] : null;
+        const canArrive = !prevStop || prevStop.status === 'departed';
+        
+        if (canArrive && distance <= ARRIVAL_RADIUS_METERS) {
+          await autoUpdateStopStatus(s, 'arrived', activeTrip.id);
+          break;
+        }
+      } else if (s.status === 'arrived' && s.id !== stop.id) {
+        await autoUpdateStopStatus(s, 'departed', activeTrip.id);
+      }
+    }
+
+    setTimeout(() => setSimulatingStop(null), 1000);
+    
+    toast({
+      title: 'GPS Simulated',
+      description: `Location set to: ${stop.stop_name}`,
+    });
+  }, [activeTrip, stops, autoUpdateStopStatus, toast]);
+
+  const simulateDeparture = useCallback(async (stop: StopWithStatus) => {
+    if (!activeTrip || !stop.latitude || !stop.longitude) return;
+    
+    setSimulatingStop(stop.id);
+    
+    const simulatedLat = stop.latitude + 0.001;
+    const simulatedLng = stop.longitude + 0.001;
+    setCurrentLocation({ lat: simulatedLat, lng: simulatedLng });
+
+    if (stop.status === 'arrived') {
+      await autoUpdateStopStatus(stop, 'departed', activeTrip.id);
+    }
+
+    setTimeout(() => setSimulatingStop(null), 1000);
+    
+    toast({
+      title: 'Departure Simulated',
+      description: `Simulated leaving: ${stop.stop_name}`,
+    });
+  }, [activeTrip, autoUpdateStopStatus, toast]);
+
   useEffect(() => {
+    if (testMode) {
+      setGpsEnabled(true);
+      setGpsError(null);
+      return;
+    }
+
     if (!activeTrip || stops.length === 0) {
       if (watchIdRef.current !== null) {
         navigator.geolocation.clearWatch(watchIdRef.current);
@@ -828,33 +894,60 @@ export default function DriverDashboard() {
         {activeTrip && stops.length > 0 && (
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-2">
                 <CardTitle className="flex items-center gap-2">
                   <MapPin className="h-5 w-5 text-primary" />
                   Route Stops
                 </CardTitle>
-                {gpsEnabled ? (
-                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300 dark:bg-green-950/30 dark:text-green-400">
-                    <Wifi className="h-3 w-3 mr-1 animate-pulse" />
-                    GPS Auto-Tracking
-                  </Badge>
-                ) : gpsError ? (
-                  <Badge variant="destructive">
-                    GPS: {gpsError}
-                  </Badge>
-                ) : (
-                  <Badge variant="secondary">
-                    <Navigation className="h-3 w-3 mr-1" />
-                    Add coordinates to enable auto-tracking
-                  </Badge>
-                )}
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant={testMode ? "default" : "outline"}
+                    onClick={() => setTestMode(!testMode)}
+                    className={testMode ? "bg-orange-500 hover:bg-orange-600" : ""}
+                  >
+                    {testMode ? (
+                      <>
+                        <Navigation className="h-3 w-3 mr-1" />
+                        Test Mode ON
+                      </>
+                    ) : (
+                      <>
+                        <Navigation className="h-3 w-3 mr-1" />
+                        Enable Test Mode
+                      </>
+                    )}
+                  </Button>
+                  {gpsEnabled && !testMode ? (
+                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300 dark:bg-green-950/30 dark:text-green-400">
+                      <Wifi className="h-3 w-3 mr-1 animate-pulse" />
+                      GPS Active
+                    </Badge>
+                  ) : testMode ? (
+                    <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-300 dark:bg-orange-950/30 dark:text-orange-400">
+                      <Navigation className="h-3 w-3 mr-1" />
+                      Simulation Mode
+                    </Badge>
+                  ) : gpsError ? (
+                    <Badge variant="destructive">
+                      GPS: {gpsError}
+                    </Badge>
+                  ) : null}
+                </div>
               </div>
               <CardDescription>
-                {gpsEnabled 
-                  ? "Stop updates are automatic - just drive! Bus will be marked when you're near each stop."
-                  : "Add GPS coordinates to stops in admin panel for automatic tracking, or use manual buttons below."
+                {testMode 
+                  ? "Test Mode: Click 'Simulate Arrive' to test automatic stop detection without traveling."
+                  : gpsEnabled 
+                    ? "Stop updates are automatic - just drive! Bus will be marked when you're near each stop."
+                    : "Add GPS coordinates to stops in admin panel for automatic tracking, or use manual buttons below."
                 }
               </CardDescription>
+              {testMode && currentLocation && (
+                <div className="mt-2 p-2 bg-orange-50 dark:bg-orange-950/30 rounded text-sm">
+                  <span className="font-medium">Simulated Location:</span> {currentLocation.lat.toFixed(6)}, {currentLocation.lng.toFixed(6)}
+                </div>
+              )}
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
@@ -896,8 +989,44 @@ export default function DriverDashboard() {
                         <p className="text-sm text-muted-foreground">Stop {stop.sequence}</p>
                       </div>
 
-                      <div className="flex gap-2">
-                        {showManualButtons && isPending && canArrive && (
+                      <div className="flex gap-2 flex-wrap">
+                        {testMode && stopHasCoords && isPending && canArrive && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="bg-orange-50 border-orange-400 text-orange-700 hover:bg-orange-100"
+                            onClick={() => simulateAtStop(stop)}
+                            disabled={simulatingStop === stop.id}
+                          >
+                            {simulatingStop === stop.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <>
+                                <Navigation className="h-4 w-4 mr-1" />
+                                Simulate Arrive
+                              </>
+                            )}
+                          </Button>
+                        )}
+                        {testMode && stopHasCoords && isCurrentStop && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="bg-orange-50 border-orange-400 text-orange-700 hover:bg-orange-100"
+                            onClick={() => simulateDeparture(stop)}
+                            disabled={simulatingStop === stop.id}
+                          >
+                            {simulatingStop === stop.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <>
+                                <ArrowRight className="h-4 w-4 mr-1" />
+                                Simulate Depart
+                              </>
+                            )}
+                          </Button>
+                        )}
+                        {!testMode && showManualButtons && isPending && canArrive && (
                           <Button
                             size="sm"
                             onClick={() => updateStopStatus(stop, 'arrived')}
@@ -913,7 +1042,7 @@ export default function DriverDashboard() {
                             )}
                           </Button>
                         )}
-                        {showManualButtons && canDepart && (
+                        {!testMode && showManualButtons && canDepart && (
                           <Button
                             size="sm"
                             variant="outline"
@@ -936,13 +1065,13 @@ export default function DriverDashboard() {
                             Done
                           </Badge>
                         )}
-                        {gpsEnabled && stopHasCoords && isCurrentStop && (
+                        {gpsEnabled && !testMode && stopHasCoords && isCurrentStop && (
                           <Badge className="bg-blue-500 animate-pulse">
                             <BusIcon className="h-3 w-3 mr-1" />
                             Here Now
                           </Badge>
                         )}
-                        {gpsEnabled && stopHasCoords && isPending && (
+                        {gpsEnabled && !testMode && stopHasCoords && isPending && (
                           <Badge variant="secondary">
                             <Clock className="h-3 w-3 mr-1" />
                             Auto
@@ -950,7 +1079,7 @@ export default function DriverDashboard() {
                         )}
                         {!stopHasCoords && (
                           <Badge variant="outline" className="text-orange-600 border-orange-400">
-                            Manual
+                            No Coords
                           </Badge>
                         )}
                       </div>
