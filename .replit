@@ -1,0 +1,15 @@
+[nix]
+channel = "stable-25_05"
+packages = ["unzip"]
+
+[agent]
+expertMode = true
+
+[userenv]
+
+[userenv.shared]
+VITE_SUPABASE_URL = "https://zonasqqmnyevnomdtvmm.supabase.co"
+VITE_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpvbmFzcXFtbnlldm5vbWR0dm1tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ0OTc4NzYsImV4cCI6MjA4MDA3Mzg3Nn0.tF9qx1P1ZePWGAjSS7wr3p1mKsjJUhyN_XwkRNJz5GM"
+VITE_GOOGLE_MAPS_API_KEY = "AIzaSyAteK1XuXT1JBFYaLMVWb-mwJBx8QR2bfk"
+SUPABASE_URL = "https://zonasqqmnyevnomdtvmm.supabase.co"
+SUPABASE_SERVICE_ROLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpvbmFzcXFtbnlldm5vbWR0dm1tIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NDQ5Nzg3NiwiZXhwIjoyMDgwMDczODc2fQ.uA0Bg7DgOGp_Wx-9NkixXR4EPd-C52sWAH65vwIx_m0"

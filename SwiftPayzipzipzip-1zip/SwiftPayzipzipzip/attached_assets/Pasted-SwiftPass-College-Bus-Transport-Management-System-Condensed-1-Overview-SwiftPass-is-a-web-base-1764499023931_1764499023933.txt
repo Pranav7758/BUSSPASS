@@ -1,0 +1,546 @@
+SwiftPass – College Bus Transport Management System (Condensed)
+1. Overview
+
+SwiftPass is a web-based bus transport management system for colleges with three user roles:
+
+Student portal
+
+Driver portal
+
+Admin portal
+
+Core features:
+
+Role-based authentication and routing
+
+QR-based digital bus pass
+
+Wallet-based payments with Razorpay
+
+Real-time bus tracking with Google Maps
+
+Clean, responsive UI using a simple, professional design system
+
+2. Tech Stack
+
+Frontend
+
+Next.js 16 (App Router, src/app/)
+
+React 19 + TypeScript
+
+Tailwind CSS v4
+
+State: React Context + Supabase client hooks
+
+Backend / Infra
+
+Supabase
+
+PostgreSQL database
+
+Supabase Auth (email/password)
+
+Real-time (bus locations, notifications)
+
+Storage (profile photos)
+
+Row Level Security (RLS)
+
+Integrations
+
+Razorpay – wallet top-up (INR)
+
+Google Maps JS API – live bus tracking
+
+qrcode.react – QR generation
+
+html5-qrcode – QR scanning
+
+recharts – admin charts
+
+3. Desired End State
+
+A fully functional multi-role app where:
+
+Students can sign up, set up bus profile, recharge wallet, view a digital QR pass, track their bus, see transactions and notifications.
+
+Drivers can start/stop trips, stream bus location in real time, scan student QR codes, and see scan history.
+
+Admins can manage buses, routes, students, drivers, view transactions, reports, and real-time bus locations.
+
+4. Authentication & Roles
+
+Auth handled by Supabase Auth (email/password).
+
+Students
+
+Self signup at /signup
+
+First-time profile setup at /student/profile-setup
+
+Drivers
+
+No signup, accounts created by admin
+
+Login via /login, redirect to /driver/dashboard
+
+Admins
+
+Seeded admin user (e.g., admin@swiftpass.com)
+
+Login → /admin/dashboard
+
+Role-based routing decides dashboard redirection after login.
+
+5. Wallet & Payment Model
+
+Wallet system (per student)
+
+Field: wallet_balance in students table (INR)
+
+Students recharge any amount (₹50–₹10000) through Razorpay
+
+Each bus route has a daily_fare (e.g., ₹60)
+
+On first scan of the day, the system deducts daily_fare from wallet
+
+Second scan of the same day: no further charge (return trip)
+
+Payment flow
+
+Student selects recharge amount on /student/wallet
+
+Frontend calls Supabase Edge Function /create-payment-order → creates Razorpay order and a pending transaction in transactions.
+
+Razorpay Checkout opens → payment done.
+
+Razorpay webhook → Supabase Edge Function /razorpay-webhook:
+
+Verifies signature
+
+Updates transaction as success/failed
+
+On success: updates wallet_balance, saves balance_before/after
+
+Creates notification for the student
+
+Rules
+
+Wallet cannot go negative.
+
+Wallet is only updated on verified successful payment.
+
+Every recharge and deduction becomes a row in transactions.
+
+6. QR Code System
+
+QR content: only Student ID (UUID) → student details are fetched from DB.
+
+Generation (Student side)
+
+Student pass at /student/pass
+
+Uses qrcode.react
+
+QR visible only if wallet_balance >= daily_fare
+
+Otherwise, one sees pass info but no QR and a message: “Insufficient Balance – Please Recharge”.
+
+Scan logic (Driver side)
+
+Driver taps floating QR scan button (FAB) on /driver/dashboard.
+
+Opens camera modal using html5-qrcode.
+
+On successful scan:
+
+Fetch student + wallet + route’s daily_fare
+
+Count today’s scans from scan_logs for that student.
+
+Validation rules
+
+Max 2 scans per day per student
+
+If scan_count_today >= 2 → scan_status = 'limit_exceeded', no deduction, show error.
+
+Insufficient balance (first scan)
+
+If scan_count_today = 0 AND wallet_balance < daily_fare
+→ scan_status = 'insufficient_balance', no deduction, show error.
+
+First scan, valid
+
+If scan_count_today = 0 AND wallet_balance >= daily_fare:
+
+Deduct daily_fare from wallet
+
+Insert deduction transaction
+
+Insert scan_logs with scan_status='success', fare_deducted=daily_fare
+
+Second scan, valid
+
+If scan_count_today = 1:
+
+No deduction
+
+Insert scan_logs with fare_deducted=0, scan_status='success'
+
+Each scan result shows student photo, name, course, balance, and a clear status screen (green for success, red/yellow for errors).
+
+7. Real-time Bus Tracking
+
+Data flow
+
+Driver starts a trip from /driver/dashboard.
+
+Browser geolocation sends lat/lng every 3–5 seconds.
+
+Each update:
+
+Previous bus_locations record for that bus is set is_active = false
+
+New record inserted with is_active = true
+
+Student view
+
+/student/track-bus shows Google Map with:
+
+Active bus marker for the student’s route (via bus_route_id)
+
+Real-time updates using Supabase real-time on bus_locations
+
+Info panel showing bus number, route, last updated, speed, status (Active/Offline if last update > 2 min)
+
+Admin view
+
+/admin/buses/[bus_id] → Live Location tab shows the same map and data, also via Supabase real-time.
+
+8. UI / Design System
+
+Goal: clean, professional, non “AI-template” look.
+
+Colors
+
+Background: #f5f5f5
+
+Cards: #ffffff
+
+Borders: #e0e0e0
+
+Text primary: #333333
+
+Text secondary: #666666
+
+Primary: #1976d2 (blue)
+
+Success: #2e7d32 (+ light green bg #e8f5e9)
+
+Error: #c62828 (+ light red bg #ffebee)
+
+Layout
+
+Sidebar (240px) with logo and nav
+
+Main content area with top header and cards
+
+Grid for stats (2–3 columns)
+
+List/table views for students, buses, transactions
+
+FAB (floating action button) bottom-right for QR scanner
+
+Typography & spacing
+
+System fonts (-apple-system, BlinkMacSystemFont, Segoe UI, etc.)
+
+Spacing scale: 8, 16, 24, 32px
+
+Border radius: 4–6px
+
+9. Database Schema (Supabase)
+
+Key tables (summarized):
+
+users
+
+id (UUID, PK, FK to auth.users)
+
+email, role (student/driver/admin), created_at
+
+students
+
+id (FK → users.id)
+
+full_name, enrollment_no, course, department
+
+phone, photo_url
+
+bus_route_id (FK → bus_routes)
+
+wallet_balance, is_blocked
+
+created_at, updated_at
+
+drivers
+
+id (FK → users.id)
+
+full_name, phone, license_number, photo_url
+
+bus_id (FK → buses)
+
+is_active, timestamps
+
+bus_routes
+
+id
+
+route_name, route_number, description
+
+daily_fare
+
+buses
+
+id
+
+bus_number, capacity
+
+route_id (FK → bus_routes)
+
+is_active
+
+bus_locations
+
+id, bus_id, driver_id
+
+latitude, longitude, speed, heading
+
+timestamp, is_active
+
+Only one active entry per bus
+
+transactions
+
+id, student_id
+
+amount, transaction_type (recharge/deduction/admin_adjustment)
+
+currency, payment_gateway, payment_id, order_id
+
+status (pending/success/failed)
+
+balance_before, balance_after
+
+description, timestamps
+
+scan_logs
+
+id, student_id, driver_id, bus_id
+
+scan_timestamp
+
+scan_status (success/insufficient_balance/limit_exceeded)
+
+fare_deducted, balance_after_scan
+
+notifications
+
+id, user_id
+
+title, message, type
+
+is_read, created_at
+
+Indexes for performance: scan logs by student+date, active locations by bus, transactions by student, unread notifications.
+
+10. Portals & Key Screens
+10.1 Student Portal
+
+Routes
+
+/signup, /login
+
+/student/profile-setup
+
+/student/dashboard
+
+/student/pass
+
+/student/wallet
+
+/student/track-bus
+
+/student/transactions
+
+/student/notifications
+
+Dashboard
+
+Cards:
+
+Wallet Balance (with color based on balance vs daily_fare)
+
+Estimated Days Remaining (floor(wallet_balance / daily_fare))
+
+Quick actions: Recharge Wallet, Track My Bus
+
+Recent 5 transactions list
+
+Pass Page
+
+Shows status:
+
+ACTIVE (green) if wallet_balance >= daily_fare → QR visible
+
+INSUFFICIENT BALANCE (red) → QR hidden
+
+Pass details: name, enrollment, route, wallet, daily fare, days remaining, scans today
+
+Wallet
+
+Current balance + estimated days
+
+Quick recharge buttons (₹500, ₹1000, ₹2000, ₹5000) + custom amount
+
+Razorpay checkout integration
+
+Tracking
+
+Map + info panel showing bus for their route
+
+Real-time marker updates
+
+Transactions & Notifications
+
+Full transactions table with filters
+
+Notification center with unread count badge, “Mark all as read”
+
+10.2 Driver Portal
+
+Routes
+
+/driver/dashboard
+
+/driver/students
+
+/driver/trips
+
+Dashboard
+
+Trip control button: Start Trip / Stop Trip
+
+Start → geolocation interval, write to bus_locations
+
+Stop → stop interval, mark last location inactive
+
+Cards: bus number, route name, total students on route
+
+Today’s scan stats: total, success, failures
+
+QR Scanner
+
+FAB bottom-right → full-screen scanner modal
+
+Uses html5-qrcode
+
+Implements full scan logic (2 scans/day, deduction, errors)
+
+Student List
+
+Students on that driver’s route:
+
+Photo, name, enrollment, course, scans today
+
+Search + filter
+
+Trip History
+
+Grouped by date from scan_logs
+
+Total scans, time range, student list; optional CSV export
+
+10.3 Admin Portal
+
+Routes
+
+/admin/dashboard
+
+/admin/buses
+
+/admin/buses/[bus_id]
+
+/admin/routes
+
+/admin/students
+
+/admin/students/[student_id]
+
+/admin/drivers
+
+/admin/transactions
+
+/admin/reports
+
+Dashboard
+
+Stats: total buses, total students, students with sufficient balance, low balance students
+
+Charts (via recharts):
+
+Wallet balance distribution
+
+Monthly revenue (sum recharges)
+
+Daily fare deductions
+
+Daily scans
+
+Bus & Route Management
+
+Buses table + Add Bus modal
+
+Bus details page:
+
+Tab: Students (list + block/unblock)
+
+Tab: Live Location (Google Map, real-time)
+
+Tab: Live Camera placeholder
+
+Routes table + Add Route modal
+
+Student Management
+
+Students table with search/filter
+
+Student details: full profile, wallet, transactions, scan history
+
+Manual wallet adjustments (admin_adjustment transaction + notification)
+
+Block/unblock
+
+Driver Management
+
+Drivers table
+
+Add Driver: creates auth user with role driver + driver row
+
+Reassign bus, deactivate driver
+
+Transactions & Reports
+
+Full transactions table with date/type/status filters + CSV export
+
+Reports:
+
+Revenue
+
+Attendance (from scan_logs)
+
+Expiring/low-balance students (for reminders)
+
+Bus utilization
