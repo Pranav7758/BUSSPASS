@@ -788,343 +788,287 @@ export default function DriverDashboard() {
 
   return (
     <SidebarLayout>
-      <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-semibold text-foreground">Driver Dashboard</h1>
-            <p className="text-muted-foreground mt-1">Manage your trips and scan student passes</p>
+      <div className="space-y-4 md:space-y-6 pb-4">
+        <div 
+          className={`relative overflow-hidden rounded-2xl p-4 md:p-6 ${
+            activeTrip 
+              ? 'bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-700' 
+              : 'bg-gradient-to-br from-slate-700 via-slate-800 to-slate-900'
+          }`}
+        >
+          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMiIvPjwvZz48L2c+PC9zdmc+')] opacity-50" />
+          
+          <div className="relative flex flex-col gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+              <div className="text-white">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className={`h-2.5 w-2.5 rounded-full ${activeTrip ? 'bg-white animate-pulse' : 'bg-slate-400'}`} />
+                  <span className="text-sm font-medium opacity-90">
+                    {activeTrip ? 'Trip in Progress' : 'Ready to Start'}
+                  </span>
+                </div>
+                <h1 className="text-xl md:text-2xl font-bold">{bus?.bus_number || 'No Bus Assigned'}</h1>
+                <p className="text-white/70 text-sm mt-0.5">
+                  {route ? `${route.route_number} • ${route.route_name}` : 'No route assigned'}
+                </p>
+              </div>
+
+              <Button
+                size="lg"
+                onClick={activeTrip ? endTrip : startTrip}
+                data-testid="button-toggle-trip"
+                className={`shrink-0 h-11 px-6 font-semibold shadow-lg ${
+                  activeTrip 
+                    ? 'bg-white text-red-600 hover:bg-red-50' 
+                    : 'bg-white text-emerald-600 hover:bg-emerald-50'
+                }`}
+              >
+                {activeTrip ? (
+                  <><Square className="h-4 w-4 mr-2" />End Trip</>
+                ) : (
+                  <><Play className="h-4 w-4 mr-2" />Start Trip</>
+                )}
+              </Button>
+            </div>
+
+            <button 
+              onClick={startScanner}
+              data-testid="button-scan-qr"
+              className="w-full flex items-center gap-4 p-4 bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-xl cursor-pointer transition-all active:scale-[0.98] border border-white/20 text-left"
+            >
+              <div className="flex h-14 w-14 md:h-16 md:w-16 items-center justify-center rounded-full bg-white shadow-lg flex-shrink-0">
+                <QrCode className="h-7 w-7 md:h-8 md:w-8 text-slate-800" />
+              </div>
+              <div className="flex-1 text-white min-w-0">
+                <p className="font-bold text-lg">Scan Student Pass</p>
+                <p className="text-white/70 text-sm">Tap here to scan QR code</p>
+              </div>
+              <div className="hidden sm:flex items-center justify-center h-10 w-10 rounded-full bg-white/20 flex-shrink-0">
+                <ArrowRight className="h-5 w-5 text-white" />
+              </div>
+            </button>
           </div>
-          <Button
-            size="lg"
-            variant={activeTrip ? 'destructive' : 'default'}
-            onClick={activeTrip ? endTrip : startTrip}
-            data-testid="button-toggle-trip"
-          >
-            {activeTrip ? (
-              <>
-                <Square className="h-5 w-5 mr-2" />
-                End Trip
-              </>
-            ) : (
-              <>
-                <Play className="h-5 w-5 mr-2" />
-                Start Trip
-              </>
-            )}
-          </Button>
         </div>
 
-        <Card className={activeTrip ? 'border-chart-2' : ''}>
-          <CardContent className="flex items-center gap-4 p-4">
-            <div
-              className={`flex h-12 w-12 items-center justify-center rounded-full ${
-                activeTrip ? 'bg-chart-2/10' : 'bg-muted'
-              }`}
-            >
-              <BusIcon className={`h-6 w-6 ${activeTrip ? 'text-chart-2' : 'text-muted-foreground'}`} />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+          <div className="bg-white dark:bg-slate-900 rounded-xl p-4 border border-slate-200 dark:border-slate-800">
+            <div className="flex items-center justify-between mb-2">
+              <Users className="h-5 w-5 text-blue-500" />
             </div>
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <span className="font-semibold">{bus?.bus_number || 'No bus assigned'}</span>
-                <Badge variant={activeTrip ? 'default' : 'secondary'}>
-                  {activeTrip ? 'Trip Active' : 'Idle'}
-                </Badge>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                {route ? `${route.route_number} - ${route.route_name}` : 'No route assigned'}
-              </p>
+            <p className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white">{totalStudents}</p>
+            <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400">Students on route</p>
+          </div>
+
+          <div className="bg-white dark:bg-slate-900 rounded-xl p-4 border border-slate-200 dark:border-slate-800">
+            <div className="flex items-center justify-between mb-2">
+              <QrCode className="h-5 w-5 text-violet-500" />
             </div>
-          </CardContent>
-        </Card>
+            <p className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white">{todayStats.total}</p>
+            <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400">Scans today</p>
+          </div>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Total Students
-              </CardTitle>
-              <Users className="h-5 w-5 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">{totalStudents}</div>
-              <p className="text-sm text-muted-foreground mt-1">On your route</p>
-            </CardContent>
-          </Card>
+          <div className="bg-white dark:bg-slate-900 rounded-xl p-4 border border-slate-200 dark:border-slate-800">
+            <div className="flex items-center justify-between mb-2">
+              <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+            </div>
+            <p className="text-2xl md:text-3xl font-bold text-emerald-600">{todayStats.success}</p>
+            <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400">Successful</p>
+          </div>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Today's Scans
-              </CardTitle>
-              <QrCode className="h-5 w-5 text-chart-4" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">{todayStats.total}</div>
-              <p className="text-sm text-muted-foreground mt-1">Total scans today</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Successful
-              </CardTitle>
-              <CheckCircle2 className="h-5 w-5 text-chart-2" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-chart-2">{todayStats.success}</div>
-              <p className="text-sm text-muted-foreground mt-1">Verified passes</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Failed
-              </CardTitle>
-              <XCircle className="h-5 w-5 text-destructive" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-destructive">{todayStats.failed}</div>
-              <p className="text-sm text-muted-foreground mt-1">Invalid/blocked</p>
-            </CardContent>
-          </Card>
+          <div className="bg-white dark:bg-slate-900 rounded-xl p-4 border border-slate-200 dark:border-slate-800">
+            <div className="flex items-center justify-between mb-2">
+              <XCircle className="h-5 w-5 text-red-500" />
+            </div>
+            <p className="text-2xl md:text-3xl font-bold text-red-600">{todayStats.failed}</p>
+            <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400">Failed</p>
+          </div>
         </div>
 
         {activeTrip && stops.length > 0 && (
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <CardTitle className="flex items-center gap-2">
-                  <MapPin className="h-5 w-5 text-primary" />
-                  Route Stops
-                </CardTitle>
-                <div className="flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant={testMode ? "default" : "outline"}
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+            <div className="p-4 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-950">
+                    <MapPin className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <h2 className="font-semibold text-slate-900 dark:text-white">Route Stops</h2>
+                    <p className="text-xs text-slate-500">
+                      {stops.filter(s => s.status === 'departed').length} of {stops.length} completed
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
                     onClick={() => setTestMode(!testMode)}
-                    className={testMode ? "bg-orange-500 hover:bg-orange-600" : ""}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                      testMode 
+                        ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-400' 
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400'
+                    }`}
                   >
-                    {testMode ? (
-                      <>
-                        <Navigation className="h-3 w-3 mr-1" />
-                        Test Mode ON
-                      </>
-                    ) : (
-                      <>
-                        <Navigation className="h-3 w-3 mr-1" />
-                        Enable Test Mode
-                      </>
-                    )}
-                  </Button>
-                  {gpsEnabled && !testMode ? (
-                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300 dark:bg-green-950/30 dark:text-green-400">
-                      <Wifi className="h-3 w-3 mr-1 animate-pulse" />
+                    <Navigation className="h-3 w-3" />
+                    {testMode ? 'Test ON' : 'Test Mode'}
+                  </button>
+                  {gpsEnabled && !testMode && (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400">
+                      <Wifi className="h-3 w-3 animate-pulse" />
                       GPS Active
-                    </Badge>
-                  ) : testMode ? (
-                    <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-300 dark:bg-orange-950/30 dark:text-orange-400">
-                      <Navigation className="h-3 w-3 mr-1" />
-                      Simulation Mode
-                    </Badge>
-                  ) : gpsError ? (
-                    <Badge variant="destructive">
-                      GPS: {gpsError}
-                    </Badge>
-                  ) : null}
+                    </span>
+                  )}
+                  {gpsError && !testMode && (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                      GPS Error
+                    </span>
+                  )}
                 </div>
               </div>
-              <CardDescription>
-                {testMode 
-                  ? "Test Mode: Click 'Simulate Arrive' to test automatic stop detection without traveling."
-                  : gpsEnabled 
-                    ? "Stop updates are automatic - just drive! Bus will be marked when you're near each stop."
-                    : "Add GPS coordinates to stops in admin panel for automatic tracking, or use manual buttons below."
-                }
-              </CardDescription>
-              {testMode && currentLocation && (
-                <div className="mt-2 p-2 bg-orange-50 dark:bg-orange-950/30 rounded text-sm">
-                  <span className="font-medium">Simulated Location:</span> {currentLocation.lat.toFixed(6)}, {currentLocation.lng.toFixed(6)}
+              {testMode && (
+                <div className="mt-3 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg text-sm text-amber-700 dark:text-amber-400">
+                  Test Mode: Click buttons to simulate GPS arrival/departure
+                  {currentLocation && (
+                    <span className="block text-xs mt-1 opacity-75">
+                      Current: {currentLocation.lat.toFixed(4)}, {currentLocation.lng.toFixed(4)}
+                    </span>
+                  )}
                 </div>
               )}
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {stops.map((stop, index) => {
-                  const isCurrentStop = stop.status === 'arrived';
-                  const isCompleted = stop.status === 'departed';
-                  const isPending = stop.status === 'pending';
-                  const prevStop = index > 0 ? stops[index - 1] : null;
-                  const canArrive = isPending && (!prevStop || prevStop.status === 'departed');
-                  const canDepart = isCurrentStop;
-                  const stopHasCoords = stop.latitude && stop.longitude;
-                  const showManualButtons = !gpsEnabled || !stopHasCoords;
+            </div>
+            <div className="p-4 space-y-2">
+              {stops.map((stop, index) => {
+                const isCurrentStop = stop.status === 'arrived';
+                const isCompleted = stop.status === 'departed';
+                const isPending = stop.status === 'pending';
+                const prevStop = index > 0 ? stops[index - 1] : null;
+                const canArrive = isPending && (!prevStop || prevStop.status === 'departed');
+                const canDepart = isCurrentStop;
+                const stopHasCoords = stop.latitude && stop.longitude;
+                const showManualButtons = !gpsEnabled || !stopHasCoords;
 
-                  return (
-                    <div
-                      key={stop.id}
-                      className={`flex items-center gap-4 p-4 rounded-lg border ${
-                        isCurrentStop ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30' :
-                        isCompleted ? 'border-green-500/30 bg-green-50/50 dark:bg-green-950/20' :
-                        'border-border'
-                      }`}
-                    >
-                      <div className={`flex h-10 w-10 items-center justify-center rounded-full ${
-                        isCompleted ? 'bg-green-500 text-white' :
-                        isCurrentStop ? 'bg-blue-500 text-white' :
-                        'bg-muted text-muted-foreground'
+                return (
+                  <div
+                    key={stop.id}
+                    className={`flex items-center gap-3 p-3 rounded-xl transition-all ${
+                      isCurrentStop 
+                        ? 'bg-blue-50 dark:bg-blue-950/40 ring-2 ring-blue-500' 
+                        : isCompleted 
+                          ? 'bg-emerald-50/50 dark:bg-emerald-950/20' 
+                          : 'bg-slate-50 dark:bg-slate-800/50'
+                    }`}
+                  >
+                    <div className="relative flex flex-col items-center">
+                      <div className={`flex h-9 w-9 md:h-10 md:w-10 items-center justify-center rounded-full text-sm font-semibold ${
+                        isCompleted 
+                          ? 'bg-emerald-500 text-white' 
+                          : isCurrentStop 
+                            ? 'bg-blue-500 text-white' 
+                            : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
                       }`}>
                         {isCompleted ? (
                           <CheckCircle2 className="h-5 w-5" />
                         ) : isCurrentStop ? (
                           <BusIcon className="h-5 w-5" />
                         ) : (
-                          <span className="font-medium">{stop.sequence}</span>
+                          stop.sequence
                         )}
                       </div>
-
-                      <div className="flex-1">
-                        <h3 className="font-medium">{stop.stop_name}</h3>
-                        <p className="text-sm text-muted-foreground">Stop {stop.sequence}</p>
-                      </div>
-
-                      <div className="flex gap-2 flex-wrap">
-                        {testMode && stopHasCoords && isPending && canArrive && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="bg-orange-50 border-orange-400 text-orange-700 hover:bg-orange-100"
-                            onClick={() => simulateAtStop(stop)}
-                            disabled={simulatingStop === stop.id}
-                          >
-                            {simulatingStop === stop.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <>
-                                <Navigation className="h-4 w-4 mr-1" />
-                                Simulate Arrive
-                              </>
-                            )}
-                          </Button>
-                        )}
-                        {testMode && stopHasCoords && isCurrentStop && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="bg-orange-50 border-orange-400 text-orange-700 hover:bg-orange-100"
-                            onClick={() => simulateDeparture(stop)}
-                            disabled={simulatingStop === stop.id}
-                          >
-                            {simulatingStop === stop.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <>
-                                <ArrowRight className="h-4 w-4 mr-1" />
-                                Simulate Depart
-                              </>
-                            )}
-                          </Button>
-                        )}
-                        {!testMode && showManualButtons && isPending && canArrive && (
-                          <Button
-                            size="sm"
-                            onClick={() => updateStopStatus(stop, 'arrived')}
-                            disabled={updatingStop === stop.id}
-                          >
-                            {updatingStop === stop.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <>
-                                <MapPin className="h-4 w-4 mr-1" />
-                                Arrived
-                              </>
-                            )}
-                          </Button>
-                        )}
-                        {!testMode && showManualButtons && canDepart && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => updateStopStatus(stop, 'departed')}
-                            disabled={updatingStop === stop.id}
-                          >
-                            {updatingStop === stop.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <>
-                                <ArrowRight className="h-4 w-4 mr-1" />
-                                Departed
-                              </>
-                            )}
-                          </Button>
-                        )}
-                        {isCompleted && (
-                          <Badge variant="outline" className="text-green-600 border-green-600">
-                            <CheckCircle2 className="h-3 w-3 mr-1" />
-                            Done
-                          </Badge>
-                        )}
-                        {gpsEnabled && !testMode && stopHasCoords && isCurrentStop && (
-                          <Badge className="bg-blue-500 animate-pulse">
-                            <BusIcon className="h-3 w-3 mr-1" />
-                            Here Now
-                          </Badge>
-                        )}
-                        {gpsEnabled && !testMode && stopHasCoords && isPending && (
-                          <Badge variant="secondary">
-                            <Clock className="h-3 w-3 mr-1" />
-                            Auto
-                          </Badge>
-                        )}
-                        {!stopHasCoords && (
-                          <Badge variant="outline" className="text-orange-600 border-orange-400">
-                            No Coords
-                          </Badge>
-                        )}
-                      </div>
+                      {index < stops.length - 1 && (
+                        <div className={`absolute top-full w-0.5 h-4 ${
+                          isCompleted ? 'bg-emerald-300' : 'bg-slate-200 dark:bg-slate-700'
+                        }`} />
+                      )}
                     </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
+
+                    <div className="flex-1 min-w-0">
+                      <p className={`font-medium text-sm md:text-base truncate ${
+                        isCompleted ? 'text-emerald-700 dark:text-emerald-400' : 
+                        isCurrentStop ? 'text-blue-700 dark:text-blue-400' : 
+                        'text-slate-700 dark:text-slate-200'
+                      }`}>{stop.stop_name}</p>
+                      {isCurrentStop && (
+                        <p className="text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                          <span className="inline-block h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse" />
+                          Bus is here
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex gap-1.5 flex-shrink-0">
+                      {testMode && stopHasCoords && isPending && canArrive && (
+                        <button
+                          onClick={() => simulateAtStop(stop)}
+                          disabled={simulatingStop === stop.id}
+                          className="px-3 py-1.5 text-xs font-medium rounded-lg bg-amber-100 text-amber-700 hover:bg-amber-200 disabled:opacity-50 transition-colors"
+                        >
+                          {simulatingStop === stop.id ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Arrive'}
+                        </button>
+                      )}
+                      {testMode && stopHasCoords && isCurrentStop && (
+                        <button
+                          onClick={() => simulateDeparture(stop)}
+                          disabled={simulatingStop === stop.id}
+                          className="px-3 py-1.5 text-xs font-medium rounded-lg bg-amber-100 text-amber-700 hover:bg-amber-200 disabled:opacity-50 transition-colors"
+                        >
+                          {simulatingStop === stop.id ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Depart'}
+                        </button>
+                      )}
+                      {!testMode && showManualButtons && isPending && canArrive && (
+                        <button
+                          onClick={() => updateStopStatus(stop, 'arrived')}
+                          disabled={updatingStop === stop.id}
+                          className="px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 transition-colors"
+                        >
+                          {updatingStop === stop.id ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Arrived'}
+                        </button>
+                      )}
+                      {!testMode && showManualButtons && canDepart && (
+                        <button
+                          onClick={() => updateStopStatus(stop, 'departed')}
+                          disabled={updatingStop === stop.id}
+                          className="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-200 text-slate-700 hover:bg-slate-300 disabled:opacity-50 transition-colors dark:bg-slate-700 dark:text-slate-200"
+                        >
+                          {updatingStop === stop.id ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Left'}
+                        </button>
+                      )}
+                      {isCompleted && (
+                        <span className="px-2 py-1 text-xs font-medium rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400">
+                          Done
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         )}
 
-        {route && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Route className="h-5 w-5 text-primary" />
-                Route Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-4 sm:grid-cols-3">
+        {route && !activeTrip && (
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-violet-50 dark:bg-violet-950">
+                <Route className="h-5 w-5 text-violet-600" />
+              </div>
+              <h2 className="font-semibold text-slate-900 dark:text-white">Route Details</h2>
+            </div>
+            <div className="grid grid-cols-3 gap-4 text-center">
               <div>
-                <p className="text-sm text-muted-foreground">Route Number</p>
-                <p className="font-medium">{route.route_number}</p>
+                <p className="text-lg font-bold text-slate-900 dark:text-white">{route.route_number}</p>
+                <p className="text-xs text-slate-500">Route</p>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Route Name</p>
-                <p className="font-medium">{route.route_name}</p>
+                <p className="text-lg font-bold text-slate-900 dark:text-white">{stops.length}</p>
+                <p className="text-xs text-slate-500">Stops</p>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Daily Fare</p>
-                <p className="font-medium">₹{route.daily_fare}</p>
+                <p className="text-lg font-bold text-emerald-600">₹{route.daily_fare}</p>
+                <p className="text-xs text-slate-500">Fare</p>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         )}
       </div>
-
-      <Button
-        size="lg"
-        className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg"
-        onClick={startScanner}
-        data-testid="button-scan-qr"
-      >
-        <QrCode className="h-6 w-6" />
-      </Button>
 
       <Dialog open={scannerOpen} onOpenChange={(open) => !open && closeScanner()}>
         <DialogContent className="max-w-md">
