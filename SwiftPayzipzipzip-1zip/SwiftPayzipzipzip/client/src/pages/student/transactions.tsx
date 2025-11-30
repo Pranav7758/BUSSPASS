@@ -207,12 +207,12 @@ export default function StudentTransactions() {
                     <div className="text-right sm:text-right pl-16 sm:pl-0">
                       <p
                         className={`text-xl font-semibold ${
-                          tx.transaction_type === 'recharge' || tx.amount > 0
+                          tx.transaction_type === 'recharge'
                             ? 'text-chart-2'
                             : 'text-destructive'
                         }`}
                       >
-                        {tx.transaction_type === 'recharge' || tx.amount > 0 ? '+' : '-'}₹
+                        {tx.transaction_type === 'recharge' ? '+' : '-'}₹
                         {Math.abs(tx.amount).toFixed(2)}
                       </p>
                       <p className="text-sm text-muted-foreground mt-1">
