@@ -1,141 +1,260 @@
 # SwiftPass - College Bus Transport Management System
 
 ## Overview
+SwiftPass is a comprehensive college bus transport management system with three role-based portals:
+- **Student Portal**: Digital QR bus pass, wallet management, bus tracking
+- **Driver Portal**: QR scanning, trip management, student list
+- **Admin Portal**: Full system management with analytics
 
-SwiftPass is a comprehensive college bus transport management system that provides role-based portals for students, drivers, and administrators. The application enables digital QR bus passes, wallet management with transaction tracking, real-time bus tracking via Google Maps, and automated GPS-based stop detection for drivers.
+## Tech Stack
+- **Frontend**: React + TypeScript + Vite
+- **Backend**: Express.js
+- **Database**: Supabase (PostgreSQL)
+- **Styling**: Tailwind CSS + shadcn/ui
+- **Maps**: Google Maps API
+- **Auth**: Supabase Auth
 
-**Core Features:**
-- Three role-based user portals (Student, Driver, Admin)
-- QR-based digital bus pass system
-- Wallet management with transaction tracking
-- Real-time bus tracking via Google Maps
-- Route and bus fleet management
-- Analytics and reporting dashboard
-- Automatic GPS-based stop detection for hands-free driver operation
+## Environment Variables Required
+- `SUPABASE_URL` - Supabase project URL
+- `SUPABASE_ANON_KEY` - Supabase anonymous key (for frontend)
+- `SUPABASE_SERVICE_ROLE_KEY` - Supabase service role key (for backend only)
+- `GOOGLE_MAPS_API_KEY` - Google Maps API key
 
-**GPS Auto-Tracking System:**
-The application uses the browser Geolocation API to automatically track driver positions and mark stops as "arrived" when within 50 meters. It uses an adaptive departure threshold system (80m default, adjusts for closely-spaced stops) with per-stop manual fallback for stops without GPS coordinates. The system gracefully degrades to manual buttons when GPS is unavailable or denied.
+## Project Structure
+```
+├── client/src/
+│   ├── pages/
+│   │   ├── student/     # Student portal pages
+│   │   ├── driver/      # Driver portal pages
+│   │   ├── admin/       # Admin portal pages
+│   │   ├── login.tsx
+│   │   └── signup.tsx
+│   ├── components/
+│   │   ├── layout/      # Sidebar, navigation
+│   │   └── ui/          # shadcn components
+│   └── lib/
+│       ├── supabase.ts  # Supabase client
+│       └── auth-context.tsx
+├── server/
+│   └── routes.ts        # API routes
+└── shared/
+    └── schema.ts        # Type definitions
+```
+
+## Database Tables
+- `users` - User accounts with roles (student/driver/admin)
+- `students` - Student profiles with wallet balance
+- `drivers` - Driver profiles
+- `buses` - Bus fleet
+- `bus_routes` - Route definitions with fares
+- `transactions` - Wallet transactions
+- `scan_logs` - QR scan history
+- `bus_locations` - Real-time bus GPS data
+- `notifications` - User notifications
+
+## Key Features
+1. **QR Digital Pass**: Students get a QR code that drivers scan
+2. **Wallet System**: Mock Razorpay for recharges, auto fare deduction
+3. **Train-Like Bus Tracking**: Stop-by-stop progress tracking (like RailYatri)
+   - Admin manages route stops with sequence ordering
+   - Real-time stop status updates via Supabase subscriptions
+   - Visual timeline with color-coded stop states (green=departed, blue=arrived, yellow=next)
+4. **Role-Based Access**: Three separate portals with different capabilities
+5. **Daily Scan Limit**: 2 scans per day (morning + evening)
+
+## Setup Instructions
+
+### 1. Supabase Setup
+The database tables need to be created in Supabase. Run this in the Supabase SQL Editor:
+
+```sql
+-- Users table
+CREATE TABLE IF NOT EXISTS users (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email TEXT UNIQUE NOT NULL,
+  role TEXT NOT NULL DEFAULT 'student' CHECK (role IN ('student', 'driver', 'admin')),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Bus routes table
+CREATE TABLE IF NOT EXISTS bus_routes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  route_name TEXT NOT NULL,
+  route_number TEXT NOT NULL UNIQUE,
+  description TEXT,
+  daily_fare NUMERIC NOT NULL DEFAULT 60,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Buses table
+CREATE TABLE IF NOT EXISTS buses (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  bus_number TEXT NOT NULL UNIQUE,
+  capacity INTEGER NOT NULL DEFAULT 50,
+  route_id UUID REFERENCES bus_routes(id) ON DELETE SET NULL,
+  is_active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Students table
+CREATE TABLE IF NOT EXISTS students (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  full_name TEXT NOT NULL,
+  enrollment_no TEXT NOT NULL UNIQUE,
+  course TEXT NOT NULL,
+  department TEXT NOT NULL,
+  phone TEXT NOT NULL,
+  photo_url TEXT,
+  bus_route_id UUID REFERENCES bus_routes(id) ON DELETE SET NULL,
+  wallet_balance NUMERIC DEFAULT 0,
+  is_blocked BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Drivers table
+CREATE TABLE IF NOT EXISTS drivers (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  full_name TEXT NOT NULL,
+  phone TEXT NOT NULL,
+  license_number TEXT NOT NULL UNIQUE,
+  photo_url TEXT,
+  bus_id UUID REFERENCES buses(id) ON DELETE SET NULL,
+  is_active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Transactions table
+CREATE TABLE IF NOT EXISTS transactions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  student_id UUID REFERENCES students(id) ON DELETE CASCADE,
+  amount NUMERIC NOT NULL,
+  transaction_type TEXT NOT NULL CHECK (transaction_type IN ('recharge', 'deduction', 'admin_adjustment')),
+  currency TEXT DEFAULT 'INR',
+  payment_gateway TEXT,
+  payment_id TEXT,
+  order_id TEXT,
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'success', 'failed')),
+  balance_before NUMERIC NOT NULL,
+  balance_after NUMERIC NOT NULL,
+  description TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Scan logs table
+CREATE TABLE IF NOT EXISTS scan_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  student_id UUID REFERENCES students(id) ON DELETE CASCADE,
+  driver_id UUID REFERENCES drivers(id) ON DELETE CASCADE,
+  bus_id UUID REFERENCES buses(id) ON DELETE CASCADE,
+  scan_timestamp TIMESTAMPTZ DEFAULT NOW(),
+  scan_status TEXT DEFAULT 'success' CHECK (scan_status IN ('success', 'insufficient_balance', 'limit_exceeded', 'blocked')),
+  fare_deducted NUMERIC DEFAULT 0,
+  balance_after_scan NUMERIC NOT NULL
+);
+
+-- Bus locations table
+CREATE TABLE IF NOT EXISTS bus_locations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  bus_id UUID REFERENCES buses(id) ON DELETE CASCADE,
+  driver_id UUID REFERENCES drivers(id) ON DELETE CASCADE,
+  latitude DOUBLE PRECISION NOT NULL,
+  longitude DOUBLE PRECISION NOT NULL,
+  speed DOUBLE PRECISION,
+  heading DOUBLE PRECISION,
+  timestamp TIMESTAMPTZ DEFAULT NOW(),
+  is_active BOOLEAN DEFAULT TRUE
+);
+
+-- Notifications table
+CREATE TABLE IF NOT EXISTS notifications (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  message TEXT NOT NULL,
+  type TEXT DEFAULT 'system' CHECK (type IN ('recharge', 'deduction', 'low_balance', 'scan', 'system')),
+  is_read BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Enable RLS
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE students ENABLE ROW LEVEL SECURITY;
+ALTER TABLE drivers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE buses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE bus_routes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE scan_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE bus_locations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies
+CREATE POLICY "Allow all for authenticated users" ON users FOR ALL TO authenticated USING (true);
+CREATE POLICY "Allow all for authenticated users" ON students FOR ALL TO authenticated USING (true);
+CREATE POLICY "Allow all for authenticated users" ON drivers FOR ALL TO authenticated USING (true);
+CREATE POLICY "Allow all for authenticated users" ON buses FOR ALL TO authenticated USING (true);
+CREATE POLICY "Allow all for authenticated users" ON bus_routes FOR ALL TO authenticated USING (true);
+CREATE POLICY "Allow all for authenticated users" ON transactions FOR ALL TO authenticated USING (true);
+CREATE POLICY "Allow all for authenticated users" ON scan_logs FOR ALL TO authenticated USING (true);
+CREATE POLICY "Allow all for authenticated users" ON bus_locations FOR ALL TO authenticated USING (true);
+CREATE POLICY "Allow all for authenticated users" ON notifications FOR ALL TO authenticated USING (true);
+
+-- Sample data
+INSERT INTO bus_routes (route_name, route_number, daily_fare, description) VALUES
+  ('Downtown - Campus Main Gate', 'R1', 60, 'Via City Center'),
+  ('North Suburb - Campus', 'R2', 50, 'Via Highway 101'),
+  ('East District - Campus', 'R3', 70, 'Via Industrial Area'),
+  ('West Town - Campus', 'R4', 55, 'Via Market Area');
+```
+
+### 2. Create Admin Account
+After setting up the database, create an admin account by calling the API:
+```bash
+curl -X POST http://localhost:5000/api/create-admin \
+  -H "Content-Type: application/json" \
+  -d '{"email": "admin@example.com", "password": "admin123"}'
+```
+
+## Running the Application
+The application runs on port 5000 with `npm run dev`.
 
 ## User Preferences
+- Blue theme (#1976d2)
+- Clean, professional design
+- Mobile-responsive layout
+- No manual SQL required - all automated
 
-Preferred communication style: Simple, everyday language.
+## Recent Changes
+- **November 30, 2025**: Added GPS Test Mode for driver dashboard
+  - **Test Mode Toggle**: Drivers can enable "Test Mode" to simulate GPS without physically traveling
+  - **Simulate Arrive Button**: Click to simulate arriving at a stop (uses stop's coordinates)
+  - **Simulate Depart Button**: Click to simulate departing from current stop
+  - Useful for testing the automatic GPS tracking system without leaving your desk
+- **November 30, 2025**: Added train-like location tracking feature (similar to RailYatri's "Where's my train")
+  - **Admin Route Stops Management** (`/admin/route-stops`): Manage stops for each route with add/edit/delete/reorder functionality
+  - **Enhanced Student Track Bus** (`/student/track-bus`): Visual timeline with real-time stop status updates
+  - Students joining mid-trip now see current stop progress
+  - Added validation for latitude/longitude coordinates
+  - Improved error handling and logging for all Supabase operations
+- **November 30, 2025**: Fixed auth context session restoration issue
+- Initial setup of all three portals
+- QR code generation and scanning
+- Mock Razorpay wallet recharges
+- Role-based authentication
 
-## System Architecture
+## GPS Auto-Tracking System
+The system uses coordinates to automatically detect when a bus arrives at or departs from stops:
+- **Arrival Radius**: 50 meters - Bus is marked "arrived" when within 50m of a stop
+- **Departure Radius**: 80 meters - Bus is marked "departed" when it moves 80m away
+- **Sequential Order**: Stops are processed in order (must depart from stop 1 before arriving at stop 2)
+- **Manual Override**: Drivers can still manually update stops if GPS fails
 
-### Frontend Architecture
-
-**Framework and Build System:**
-- React 19 with TypeScript for type safety
-- Vite as the build tool and development server for fast compilation
-- Client-side routing using wouter (lightweight React Router alternative)
-- TanStack Query for server state management and caching
-
-**Rationale:** React 19 provides modern features with excellent performance, while Vite offers significantly faster build times compared to webpack-based solutions. Wouter reduces bundle size compared to React Router while providing the same routing capabilities needed for the application.
-
-**UI Component System:**
-- Tailwind CSS v4 for utility-first styling with custom design tokens
-- shadcn/ui component library built on Radix UI primitives
-- Custom design system inspired by modern productivity tools (Linear, Notion)
-- Fixed sidebar navigation layout (240px width) with responsive design
-- Custom color system with neutral base (#f5f5f5 background) and blue primary (#1976d2)
-
-**Rationale:** Tailwind CSS provides rapid development with consistent spacing and colors while maintaining small bundle sizes. shadcn/ui offers accessible, customizable components without the bloat of traditional component libraries. The fixed sidebar pattern improves navigation consistency across the application.
-
-**State Management Strategy:**
-- React Context API for global authentication state
-- TanStack Query for API data caching, synchronization, and automatic refetching
-- Supabase Realtime subscriptions for live updates (bus locations, notifications)
-
-**Rationale:** Context API handles simple global state without additional dependencies. TanStack Query eliminates the need for manual cache management and provides optimistic updates. Supabase Realtime enables real-time features without implementing WebSocket infrastructure.
-
-### Backend Architecture
-
-**Server Framework:**
-- Express.js for HTTP server and API routing
-- Node.js runtime environment
-- Middleware for JSON parsing, URL encoding, and request logging
-
-**Rationale:** Express provides a minimal, flexible framework for API development with extensive middleware ecosystem. The simplicity allows rapid API development without unnecessary abstractions.
-
-**API Design:**
-- RESTful API endpoints organized by resource type
-- Database initialization endpoint for schema setup
-- Service role key usage for admin operations (bypasses Row Level Security)
-
-**Authentication & Authorization:**
-- Supabase Auth for user authentication (email/password)
-- Role-based access control with three roles: student, driver, admin
-- Protected routes with client-side and server-side validation
-- Session management handled by Supabase
-
-**Rationale:** Supabase Auth provides production-ready authentication without implementing custom security logic. Role-based access control ensures users only access appropriate features for their role.
-
-### Data Layer
-
-**Database:**
-- PostgreSQL via Supabase (managed cloud database)
-- Drizzle ORM for type-safe database queries
-- Schema definition in shared TypeScript files
-
-**Core Database Tables:**
-- `users` - User accounts with roles (student/driver/admin)
-- `students` - Student profiles with wallet balance, enrollment details
-- `drivers` - Driver profiles with license information
-- `buses` - Bus fleet with capacity and route assignments
-- `bus_routes` - Route definitions with fares and descriptions
-- `route_stops` - Stop locations with GPS coordinates for auto-tracking
-- `transactions` - Wallet transaction history
-- `trips` - Driver trip records with start/end times
-
-**Rationale:** PostgreSQL provides robust relational data handling with ACID compliance. Drizzle ORM offers type safety without the complexity of heavier ORMs like TypeORM. Supabase handles database provisioning, backups, and scaling.
-
-**Data Access Patterns:**
-- Direct Supabase client queries from frontend for reads
-- Row Level Security (RLS) policies for data access control
-- Server-side service role key for admin operations
-- Real-time subscriptions for live data updates
-
-**Rationale:** Client-side queries reduce server load and latency. RLS provides database-level security that can't be bypassed. Service role key enables admin operations that need to bypass RLS constraints.
-
-## External Dependencies
-
-### Third-Party Services
-
-**Supabase (PostgreSQL + Auth + Realtime + Storage):**
-- Purpose: Primary backend infrastructure
-- Features Used: Database, authentication, real-time subscriptions, file storage
-- Configuration: Requires `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
-- Rationale: Provides complete backend-as-a-service eliminating need for custom server infrastructure
-
-**Google Maps API:**
-- Purpose: Bus tracking and route visualization
-- Features Used: Map display, marker placement, route rendering
-- Configuration: Requires `GOOGLE_MAPS_API_KEY`
-- Integration: Loaded via `@googlemaps/js-api-loader` package
-- Rationale: Industry-standard mapping solution with comprehensive features and documentation
-
-### Key Dependencies
-
-**UI Components:**
-- `@radix-ui/*` - Accessible, unstyled UI primitives (accordion, dialog, dropdown, etc.)
-- `tailwindcss` - Utility-first CSS framework
-- `class-variance-authority` - Type-safe component variants
-- `lucide-react` - Icon library
-
-**State & Data Management:**
-- `@tanstack/react-query` - Asynchronous state management
-- `@supabase/supabase-js` - Supabase client library
-- `react-hook-form` - Form state management
-- `zod` - Schema validation
-
-**Database & ORM:**
-- `drizzle-orm` - TypeScript ORM
-- `@neondatabase/serverless` - Serverless Postgres driver
-- `drizzle-kit` - Database migrations toolkit
-
-**Development Tools:**
-- `typescript` - Type checking and compilation
-- `vite` - Build tool and dev server
-- `tsx` - TypeScript execution for Node.js
-
-**Rationale:** Dependencies are chosen to minimize bundle size while maximizing developer experience and type safety. Radix UI provides accessibility without styling constraints. TanStack Query eliminates manual cache management. Drizzle provides type safety without runtime overhead.
+## New Database Tables Required
+Run the SQL in `supabase-tables.sql` to add the stop tracking tables:
+- `route_stops` - Ordered stops for each route (stop_name, sequence, lat/lng)
+- `active_trips` - Current active trip tracking (bus_id, is_active)
+- `trip_stop_events` - Bus progress through stops (trip_id, route_stop_id, status, arrived_at, departed_at)
