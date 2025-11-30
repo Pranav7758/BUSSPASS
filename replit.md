@@ -22,23 +22,24 @@ SwiftPass is a comprehensive college bus transport management system with three 
 
 ## Project Structure
 ```
-├── client/src/
-│   ├── pages/
-│   │   ├── student/     # Student portal pages
-│   │   ├── driver/      # Driver portal pages
-│   │   ├── admin/       # Admin portal pages
-│   │   ├── login.tsx
-│   │   └── signup.tsx
-│   ├── components/
-│   │   ├── layout/      # Sidebar, navigation
-│   │   └── ui/          # shadcn components
-│   └── lib/
-│       ├── supabase.ts  # Supabase client
-│       └── auth-context.tsx
-├── server/
-│   └── routes.ts        # API routes
-└── shared/
-    └── schema.ts        # Type definitions
+swiftpass/
+├── client/                 # React frontend
+│   ├── src/
+│   │   ├── components/     # Reusable UI components
+│   │   │   ├── layout/     # Sidebar, navigation
+│   │   │   └── ui/         # shadcn/ui components
+│   │   ├── hooks/          # Custom React hooks
+│   │   ├── lib/            # Utilities, auth context
+│   │   └── pages/          # Page components
+│   │       ├── admin/      # Admin portal pages
+│   │       ├── driver/     # Driver portal pages
+│   │       └── student/    # Student portal pages
+│   └── public/             # Static assets
+├── server/                 # Express backend
+│   ├── routes.ts           # API endpoints
+│   └── index.ts            # Server entry point
+├── shared/                 # Shared types/schemas
+└── supabase-tables.sql     # Database schema
 ```
 
 ## Database Tables
